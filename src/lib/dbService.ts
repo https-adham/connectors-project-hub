@@ -56,14 +56,21 @@ export async function submitProjectIdea(data: SubmissionFormData): Promise<Submi
       estimated_team_size: data.estimated_team_size,
       inspiration_url: data.inspiration_url.trim() || null,
       additional_notes: data.additional_notes.trim() || null,
-      review_status: 'new',
+      review_status: 'new' as const,
     };
 
-    const { data: inserted, error } = await supabase
+    const newId = crypto.randomUUID();
+    const nowIso = new Date().toISOString();
+
+    const insertRecord = {
+      id: newId,
+      created_at: nowIso,
+      ...payload,
+    };
+
+    const { error } = await supabase
       .from('project_ideas')
-      .insert(payload)
-      .select()
-      .single();
+      .insert(insertRecord);
 
     if (error) {
       console.error('Supabase submission insert error:', error);
@@ -73,16 +80,16 @@ export async function submitProjectIdea(data: SubmissionFormData): Promise<Submi
       };
     }
 
-    if (!inserted || !inserted.id) {
-      return {
-        success: false,
-        error: 'لم نتمكن من تأكيد حفظ الفكرة في قاعدة البيانات.',
-      };
-    }
+    const insertedIdea: ProjectIdea = {
+      ...insertRecord,
+      reviewer_notes: null,
+      reviewed_at: null,
+      reviewed_by: null,
+    };
 
     return {
       success: true,
-      idea: inserted as ProjectIdea,
+      idea: insertedIdea,
     };
   } catch (err: unknown) {
     console.error('Unexpected submission failure:', err);
